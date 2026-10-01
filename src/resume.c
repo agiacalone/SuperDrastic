@@ -16,6 +16,8 @@
 // DraStic's savestate file calls.
 // DSFLIP_RESUME_ON_QUIT=0: only SIGUSR1 saves; the in-game menu's Quit and the exit combos quit at once, as without a
 // file (a frontend whose own quick resume is off, that still saves the game before a power-off of its own).
+// The previous resume file stays until DraStic's rename replaces it, so a save that doesn't finish (the 5 s timeout,
+// a full disk) leaves the last good state in place.
 #define _GNU_SOURCE
 #include <dlfcn.h>
 #include <errno.h>
@@ -258,7 +260,9 @@ static void *save_thread(void *a) {
     long long t0 = now_ms();
     while (!saved && now_ms() - t0 < 5000) usleep(20000);
     if (saved == 1) dsflip_log("[resume] saved in %lld ms: quitting\n", now_ms() - t0);
-    else dsflip_log("[resume] %s: quitting without one\n", saved ? "the resume state couldn't be written" : "no savestate within 5 s");
+    else dsflip_log("[resume] %s: quitting without one%s\n",
+                    saved ? "the resume state couldn't be written" : "no savestate within 5 s",
+                    resume_path[0] && access(resume_path, R_OK) == 0 ? " (previous resume state kept)" : "");
     quit_kill();
     return 0;
 }
@@ -310,7 +314,8 @@ void resume_frame(void) {
         saving = 1; want_save = 0;
         dsflip_log("[resume] quit requested: saving a resume state\n");
         cpugov_boost(3000);                           /* the top clock from the press on: DraStic compresses ~6.5 MB */
-        unlink(resume_path);
+        /* the previous state isn't unlinked here: the rename hook replaces it only once the new file is complete.
+         * Deleting first threw the last good resume away whenever the save timed out or failed. */
         resume_press(btn_save);
         pthread_t t; if (pthread_create(&t, 0, save_thread, 0)) quit_kill();
         pthread_setname_np(t, "dsf-resume");
