@@ -359,6 +359,8 @@ static void game_info_once(void) { pthread_once(&gi_once, game_info); }
 /* the game's name as DraStic names its files (audio.c: the fake microphone's sample) */
 const char *menu_game_base(void) { game_info_once(); return gbase; }
 static void slot_path(int n, char *out, size_t sz) { snprintf(out, sz, "%s/%s_%d.dss", sdir, gbase, n); }
+/* the game's name, for resume.c's pop-ups (DraStic's save / load state buttons) */
+const char *menu_game_title(void) { if (!gbase[0]) game_info(); return gtitle; }
 
 /* zlib, as ra.c loads it */
 typedef struct {
