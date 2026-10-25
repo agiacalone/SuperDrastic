@@ -52,6 +52,7 @@ int audio_mic_sample_ms(void);
 void dsflip_toast(const char *l1, const char *l2, uint32_t accent, int ms);
 void dsflip_log(const char *fmt, ...);
 void cpugov_boost(int ms);
+void cpugov_menu(int open);
 void SDL_PauseAudio(int on);
 void dsflip_perf_mode(int m);
 int dsflip_shader_switch(const char *name);
@@ -1341,6 +1342,7 @@ static void menu_run(int start) {
     SDL_PauseAudio(1);
     audio_mic_quiet(1);             /* the real mic presses nothing while the game is paused */
     cpugov_boost(800);
+    cpugov_menu(1);
     open_ = 1; scr = SC_MAIN; sel_main = 0; held_dir = 0; axis_dir[0] = axis_dir[1] = 0; tqn = 0;
     bri_dirty = 0; make_rows(); shaders_load(); sh_sel = sh_active;
     scan_slots(0);
@@ -1375,6 +1377,7 @@ static void menu_run(int start) {
     if (mic_until) { audio_mic_hold(1); mic_trig = now_ms(); }
     SDL_PauseAudio(0);
     audio_mic_quiet(0);
+    cpugov_menu(0);
     dsflip_log("[menu] closed\n");
 }
 
