@@ -35,6 +35,8 @@ void dsflip_log(const char *fmt, ...);
 void cpugov_boost(int ms);
 void dsflip_toast(const char *l1, const char *l2, uint32_t accent, int ms);
 void audio_mute(int on);
+void audio_hand_off(void);   /* audio.c: the output's last close left to a helper process */
+static void quit_kill(void) { audio_hand_off(); kill(getpid(), SIGKILL); }
 extern volatile int dsflip_hold;
 extern volatile int dsflip_stalled;      /* dsflip.c: DraStic hasn't shown a frame for a while (not in a menu) */
 int menu_is_open(void);
@@ -254,7 +256,7 @@ static void *save_thread(void *a) {
     while (!saved && now_ms() - t0 < 5000) usleep(20000);
     if (saved == 1) dsflip_log("[resume] saved in %lld ms: quitting\n", now_ms() - t0);
     else dsflip_log("[resume] %s: quitting without one\n", saved ? "the resume state couldn't be written" : "no savestate within 5 s");
-    kill(getpid(), SIGKILL);
+    quit_kill();
     return 0;
 }
 /* The save runs on DraStic's main thread, at its next frame (resume_frame). Nothing else can make it: if that thread
@@ -280,7 +282,7 @@ static void on_usr1(int sig) {
     long long t = now_ms();                              /* clock_gettime: async-signal-safe */
     /* again (while saving, or a second after a request DraStic hasn't taken: not a key repeat), stalled, or nothing
      * to save with: now */
-    if (saving || dsflip_stalled || !resume_path[0] || btn_save < 0 || (want_save && t - usr1_t >= 1000)) kill(getpid(), SIGKILL);
+    if (saving || dsflip_stalled || !resume_path[0] || btn_save < 0 || (want_save && t - usr1_t >= 1000)) quit_kill();
     if (!want_save) usr1_t = t;
     want_save = 1;
     if (quit_watch_on) sem_post(&quit_sem);              /* async-signal-safe */
@@ -306,7 +308,7 @@ void resume_frame(void) {
         cpugov_boost(3000);                           /* the top clock from the press on: DraStic compresses ~6.5 MB */
         unlink(resume_path);
         resume_press(btn_save);
-        pthread_t t; if (pthread_create(&t, 0, save_thread, 0)) kill(getpid(), SIGKILL);
+        pthread_t t; if (pthread_create(&t, 0, save_thread, 0)) quit_kill();
         pthread_setname_np(t, "dsf-resume");
     }
     if (want_load && frames >= load_at_frame && !loading) {
@@ -364,8 +366,13 @@ int resume_menu_load(const char *path, const char *backup, const char *msg, cons
 /* quit to the menu, with a resume state when that is on: 1 if it saves first */
 int resume_quit(void) {
     if (resume_on() && !saving) { if (!want_save) usr1_t = now_ms(); want_save = 1; return 1; }   /* (a hotkey press now is a repeat) */
-    kill(getpid(), SIGKILL);
+    quit_kill();
     return 0;
+}
+/* the menu's Quit without saving: at once, no resume state (the game's own save stays as DraStic last wrote it) */
+void resume_quit_nosave(void) {
+    dsflip_log("[resume] quit without saving\n");
+    quit_kill();
 }
 static void menu_jobs(void) {
     if (m_saving && (m_saved || frames - m_t > 300)) {          /* written, failed, or nothing after 5 s */
