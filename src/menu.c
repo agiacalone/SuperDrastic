@@ -59,6 +59,7 @@ int dsflip_shader_on(void);
 /* shader.c */
 const char *shader_name(void);
 int shader_list(char (*names)[48], int max);
+int SDL_PushEvent(void *event);
 /* audio.c */
 void audio_mute(int on);
 int audio_ui_load(int id, const int16_t *pcm, int frames, int rate, int ch);
@@ -1252,6 +1253,15 @@ static void dir_press(int dx, int dy) { nav(dx, dy); held_dir = 1; rep_dx = dx; 
 static void dir_release(void) { held_dir = 0; }
 static void handle_sdl(const uint8_t *e) {
     uint32_t type; memcpy(&type, e, 4);
+    if (type == 0x100) {                            /* SDL_QUIT (SIGTERM: a shutdown, the menu's quit): the menu's own
+                                                     * poll took it from DraStic, which would never quit. Close and
+                                                     * hand it back, so DraStic quits as it does without the menu */
+        uint8_t q[64]; memcpy(q, e, sizeof q);
+        dsflip_log("[menu] quit asked while open: closing, DraStic quits\n");
+        close_menu();
+        SDL_PushEvent(q);
+        return;
+    }
     if (type == 0x603 || type == 0x604) {           /* SDL_JOYBUTTONDOWN / UP */
         int b = e[12], down = type == 0x603;
         if (!down) { if (b == b_up || b == b_down || b == b_left || b == b_right) dir_release(); return; }
