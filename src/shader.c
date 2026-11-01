@@ -313,6 +313,14 @@ static int compile_named(const char *name, GLuint *out, shlines *L) {
         fs = slurp(path, &n); from = path;
     }
     if (!fs) { SLOG("[shader] unknown shader \"%s\" (not built into libdrastouch, no %s.frag in the shader folders)\n", name, name); return 0; }
+    /* libretro's "#pragma parameter NAME "Label" ..." lines: the Mali blob (ROCKNIX's libmali, g29p1) refuses the
+     * quotes in them ("L0001: Unknown character '"'"), where Mesa lets an unknown pragma go. They only describe the
+     * parameters, which the converted shaders set to their defaults, so each is turned into a comment in place
+     * ("#p" -> "//"): the same length and lines, so the compiler's line numbers still match the file. */
+    for (char *p = fs; (p = strstr(p, "#pragma parameter")); p += 2) {
+        const char *b = p; while (b > fs && (b[-1] == ' ' || b[-1] == '\t')) b--;
+        if (b == fs || b[-1] == '\n') { p[0] = '/'; p[1] = '/'; }
+    }
     { const char *m = strstr(fs, "dsflip-viewport:"); char word[16];
       if (m && sscanf(m + 16, "%d %d %d %d", &L->vp[0], &L->vp[1], &L->vp[2], &L->vp[3]) == 4)
           SLOG("[shader] draws the DS screen at %d,%d %dx%d of the panel (touch follows)\n", L->vp[0], L->vp[1], L->vp[2], L->vp[3]);
