@@ -1,6 +1,6 @@
 /* A direction or button held when the in-game menu opens has to be released to DraStic if the player let go
  * while the menu had the event loop. Presses that only drove the menu must not be handed to the game.
- * gcc -O2 -Wall -o /tmp/t_hold_diff tools/ut/t_hold_diff.c src/resume.c && /tmp/t_hold_diff */
+ * clang -O2 -Wall -o /tmp/t_hold_diff tools/ut/t_hold_diff.c src/resume.c tools/ut/resume-stubs.c -ldl -lpthread && /tmp/t_hold_diff */
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>

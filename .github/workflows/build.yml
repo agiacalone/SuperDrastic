@@ -45,7 +45,9 @@ jobs:
             llvm-nm -D --defined-only $L | grep -q " $s\$" || { echo "hook $s missing"; exit 1; }
           done
           sh -n runner/superdrastic-run && sh -n runner/superdrastic-update
-          clang -O2 -Wall -Wextra -o /tmp/resume-keep-test tools/resume-keep-test.c src/resume.c -ldl -lpthread
+          clang -O2 -Wall -Wextra -o /tmp/resume-keep-test tools/resume-keep-test.c src/resume.c tools/ut/resume-stubs.c -ldl -lpthread
+          clang -O2 -Wall -o /tmp/t_hold_diff tools/ut/t_hold_diff.c src/resume.c tools/ut/resume-stubs.c -ldl -lpthread
+          /tmp/t_hold_diff
           /tmp/resume-keep-test
       - name: Package
         run: sh package.sh
